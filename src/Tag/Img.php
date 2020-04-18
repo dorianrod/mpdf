@@ -25,9 +25,19 @@ class Img extends Tag
 		$objattr['border_bottom']['w'] = 0;
 		$objattr['border_left']['w'] = 0;
 		$objattr['border_right']['w'] = 0;
+
+
 		if (isset($attr['SRC'])) {
 			$srcpath = $attr['SRC'];
 			$orig_srcpath = (isset($attr['ORIG_SRC']) ? $attr['ORIG_SRC'] : '');
+
+			if(isset($attr['SRCSET']) && $this->mpdf->useSrcSet) {
+				$srcsmall = explode(" ", $attr['SRCSET'])[0] ?? null;
+				if($srcsmall) {
+					$srcpath = $srcsmall;
+				}
+			}
+
 			$properties = $this->cssManager->MergeCSS('', 'IMG', $attr);
 			if (isset($properties ['DISPLAY']) && strtolower($properties ['DISPLAY']) === 'none') {
 				return;
@@ -282,6 +292,7 @@ class Img extends Tag
 					$h = ($info['h'] * (25.4 / $this->mpdf->img_dpi));
 				}
 			}
+			
 			if (!$info) {
 				return;
 			}

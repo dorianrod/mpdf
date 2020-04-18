@@ -138,6 +138,47 @@ class ImageProcessor implements \Psr\Log\LoggerAwareInterface
 		$this->failedImages = [];
 	}
 
+	public function scaleImage($info, $coeff = 1) {
+		try {
+			if( ($info['type'] ?? null) == 'jpg') {
+				$res 		= imagecreatefromstring($info['data']);
+				if($res) {
+					$w			= max(2, $info['w'] * $coeff);
+					$h			= max(2, $info['h'] * $coeff);
+					$resRescale = imagescale($res, $w, $h);
+					if($resRescale) {
+						ob_start();
+						imagejpeg($resRescale);
+						$c = ob_get_contents();
+						ob_end_clean();
+						return $c;
+					}
+				}
+			}
+			return $info['data'] ?? null;
+		} finally {
+			if($res ?? false) imagedestroy($res);
+			if($resRescale ?? false) imagedestroy($resRescale);
+		}
+		/*
+		$res 		= imagecreatefromstring($info['data']);
+		$resRescale = imagescale($res, $info['w'] * $coeff, $info['h'] * $coeff);
+		ob_start();
+		if($info['type'] == 'jpg') {
+			imagejpeg($resRescale);
+		} else if($info['type'] == 'png') {
+			imagepng($resRescale);
+		} else {
+			$info['type'] = 'jpg';
+			imagejpeg($resRescale);
+		}
+		$c = ob_get_contents();
+		ob_end_clean();
+		imagedestroy($res);
+		imagedestroy($resRescale);
+		return $c;*/
+	}
+
 	/**
 	 * @param \Psr\Log\LoggerInterface
 	 *
@@ -149,6 +190,65 @@ class ImageProcessor implements \Psr\Log\LoggerAwareInterface
 
 		return $this;
 	}
+
+	/*
+	public function getResizedImage($info, $max_width, $max_height, $quality = 80, $resample = null) {
+		$key 	= $info['i'] . "_${max_width}_${max_height}"; 
+		if(isset($this->mpdf->images[$key])) return $this->mpdf->images[$key];
+
+		$width 	= $info['w'];
+		$height = $info['h'];
+		$type 	= $info['type'];
+	
+		switch($type){
+			case 'jpg':
+				$image 			= "imagejpeg";
+				break;
+	
+			default:
+				return false;
+				break;
+		}
+
+		if(is_null($resample)) {
+			$resample = $this->mpdf->resamplePicture;
+		}
+
+		$resizeimage = $resample ? "imagecopyresampled" : "imagecopyresized";
+		
+		$dst_img = imagecreatetruecolor($max_width, $max_height);
+		$src_img = imagecreatefromstring($info['data']);
+		
+		$width_new  = $height * $max_width / $max_height;
+		$height_new = $width * $max_height / $max_width;
+		//if the new width is greater than the actual width of the image, then the height is too large and the rest cut off, or vice versa
+		if($width_new > $width){
+			//cut point by height
+			$h_point = (($height - $height_new) / 2);
+			//copy image
+			$resizeimage($dst_img, $src_img, 0, 0, 0, $h_point, $max_width, $max_height, $width, $height_new);
+		}else{
+			//cut point by width
+			$w_point = (($width - $width_new) / 2);
+			$resizeimage($dst_img, $src_img, 0, 0, $w_point, 0, $max_width, $max_height, $width_new, $height);
+		}
+
+		$infoRet = $info;
+		$infoRet['w'] = $max_width;
+		$infoRet['h'] = $max_height;
+
+		ob_start();
+		$image($dst_img, null, $quality);
+		$infoRet['data'] = ob_get_clean(); // read from buffer
+	
+		if($dst_img)imagedestroy($dst_img);
+		if($src_img)imagedestroy($src_img);
+
+		$infoRet['i'] = count($this->mpdf->images) + 1;
+		$this->mpdf->images[$key] = $infoRet;
+
+		return $infoRet;
+	}*/
 
 	public function getImage(&$file, $firsttime = true, $allowvector = true, $orig_srcpath = false, $interpolation = false)
 	{
@@ -401,6 +501,10 @@ class ImageProcessor implements \Psr\Log\LoggerAwareInterface
 
 			if (!$info) {
 				return $this->imageError($file, $firsttime, 'Error parsing or converting JPG image');
+			}
+
+			if($this->mpdf->scaleImageCoeff && $info) {
+				$info['data'] = $this->scaleImage($info, $this->mpdf->scaleImageCoeff);
 			}
 
 			if ($firsttime) {
