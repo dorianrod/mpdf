@@ -321,20 +321,27 @@ class ImageProcessor implements \Psr\Log\LoggerAwareInterface
 
 		if (empty($data)) {
 
+			$opts = array(
+				"ssl"=>array(
+					"verify_peer"=>false,
+					"verify_peer_name"=>false,
+				),
+			); 
+
 			$data = '';
 
-			if ($orig_srcpath && $this->mpdf->basepathIsLocal && $check = @fopen($orig_srcpath, 'rb')) {
+			if ($orig_srcpath && $this->mpdf->basepathIsLocal && $check = @fopen($orig_srcpath, 'rb', false, stream_context_create($opts))) {
 				fclose($check);
 				$file = $orig_srcpath;
 				$this->logger->debug(sprintf('Fetching (file_get_contents) content of file "%s" with local basepath', $file), ['context' => LogContext::REMOTE_CONTENT]);
-				$data = file_get_contents($file);
+				$data = file_get_contents($file, false, stream_context_create($opts));
 				$type = $this->guesser->guess($data);
 			}
 
-			if (!$data && $check = @fopen($file, 'rb')) {
+			if (!$data && $check = @fopen($file, 'rb', false, stream_context_create($opts))) {
 				fclose($check);
 				$this->logger->debug(sprintf('Fetching (file_get_contents) content of file "%s" with non-local basepath', $file), ['context' => LogContext::REMOTE_CONTENT]);
-				$data = file_get_contents($file);
+				$data = file_get_contents($file, false, stream_context_create($opts));
 				$type = $this->guesser->guess($data);
 			}
 
